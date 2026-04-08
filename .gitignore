@@ -1,0 +1,39 @@
+# Project-specific exclusions
+/docs/
+CLAUDE.md
+
+# Java / Maven / Gradle
+target/
+build/
+*.class
+*.jar
+*.war
+*.ear
+.gradle/
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Spring Boot
+application-local.properties
+application-local.yml
+
+# Node / React / Vite
+node_modules/
+dist/
+.vite/
+*.local
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
