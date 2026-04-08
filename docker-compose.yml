@@ -34,8 +34,8 @@ services:
       test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
       interval: 10s
       timeout: 5s
-      start_period: 120s
-      retries: 6
+      start_period: 180s
+      retries: 12
 
   friday-tts:
     image: openclaw/qwen-tts-cuda:local
@@ -54,11 +54,14 @@ services:
       - ${MODELS_PATH}:/models:ro
     networks:
       - friday-net
+    depends_on:
+      friday-llm:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:9001/health"]
       interval: 10s
       timeout: 5s
-      start_period: 60s
+      start_period: 120s
       retries: 6
 
   friday-whisper:
@@ -102,6 +105,7 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-friday}"]
       interval: 10s
       timeout: 5s
+      start_period: 20s
       retries: 5
 
   friday-backend:
@@ -123,6 +127,9 @@ services:
       GITHUB_REPO: deckercr/friday-AI
       PROJECT_ROOT: /workspace
     volumes:
+      # Friday AI tool access — grants read/write to full project including docker-compose.yml and .env
+      # This is intentional: the AI agent modifies source files for PR proposals.
+      # Do not add secrets to this directory that should not be AI-readable.
       - /home/deckercr/projects/friday-AI:/workspace
     ports:
       - "8081:8081"
@@ -134,4 +141,6 @@ services:
       friday-llm:
         condition: service_healthy
       friday-tts:
+        condition: service_healthy
+      friday-whisper:
         condition: service_healthy
