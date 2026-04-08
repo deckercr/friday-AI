@@ -1,0 +1,137 @@
+networks:
+  friday-net:
+    driver: bridge
+
+volumes:
+  friday-db-data:
+
+services:
+  friday-llm:
+    image: openclaw/llamacpp-cuda:local
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${NVIDIA_GPU_UUID}"]
+              capabilities: [gpu]
+    environment:
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    volumes:
+      - ${MODELS_PATH}:/models:ro
+    networks:
+      - friday-net
+    command: >
+      --model /models/Qwen3.5-9B-Q8_0.gguf
+      --alias Qwen3.5-9B
+      --n-gpu-layers 99
+      --ctx-size 65536
+      --host 0.0.0.0
+      --port 8080
+      --parallel 1
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 120s
+      retries: 6
+
+  friday-tts:
+    image: openclaw/qwen-tts-cuda:local
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${NVIDIA_GPU_UUID}"]
+              capabilities: [gpu]
+    environment:
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      TTS_MODEL_PATH: /models/qwen3-tts
+    volumes:
+      - ${MODELS_PATH}:/models:ro
+    networks:
+      - friday-net
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9001/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 6
+
+  friday-whisper:
+    image: openclaw/whisper-rocm:latest
+    restart: unless-stopped
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri/renderD${AMD_RENDER_NODE:-128}:/dev/dri/renderD128
+    group_add:
+      - video
+      - render
+    environment:
+      ROCR_VISIBLE_DEVICES: "0"
+    volumes:
+      - ${MODELS_PATH}:/models:ro
+    networks:
+      - friday-net
+    command: >
+      --model /models/ggml-large-v3.bin
+      --host 0.0.0.0
+      --port 9000
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9000/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 6
+
+  friday-db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-friday}
+      POSTGRES_USER: ${DB_USER:-friday}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - friday-db-data:/var/lib/postgresql/data
+    networks:
+      - friday-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-friday}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  friday-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      LLM_BASE_URL: http://friday-llm:8080
+      TTS_BASE_URL: http://friday-tts:9001
+      WHISPER_BASE_URL: http://friday-whisper:9000
+      DB_HOST: friday-db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-friday}
+      DB_USER: ${DB_USER:-friday}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+      GITHUB_REPO: deckercr/friday-AI
+      PROJECT_ROOT: /workspace
+    volumes:
+      - /home/deckercr/projects/friday-AI:/workspace
+    ports:
+      - "8081:8081"
+    networks:
+      - friday-net
+    depends_on:
+      friday-db:
+        condition: service_healthy
+      friday-llm:
+        condition: service_healthy
+      friday-tts:
+        condition: service_healthy
