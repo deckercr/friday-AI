@@ -1,0 +1,49 @@
+server:
+  port: 8081
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:friday}
+    username: ${DB_USER:friday}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+  ai:
+    openai:
+      base-url: ${LLM_BASE_URL:http://localhost:8080}
+      api-key: dummy
+      chat:
+        options:
+          model: Qwen3.5-9B
+      embedding:
+        options:
+          model: Qwen3.5-9B
+    vectorstore:
+      pgvector:
+        initialize-schema: true
+        dimensions: 1536
+        distance-type: COSINE_DISTANCE
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    access-expiry-ms: 900000       # 15 minutes
+    refresh-expiry-ms: 604800000   # 7 days
+  github:
+    token: ${GITHUB_TOKEN}
+    repo: ${GITHUB_REPO:deckercr/friday-AI}
+    base-branch: dev
+    api-url: https://api.github.com
+  tts:
+    base-url: ${TTS_BASE_URL:http://localhost:9001}
+  whisper:
+    base-url: ${WHISPER_BASE_URL:http://localhost:9000}
+  project-root: ${PROJECT_ROOT:/workspace}
