@@ -25,11 +25,13 @@ public class ChatService {
     private final FileTools fileTools;
     private final ExecTools execTools;
     private final GitHubTools githubTools;
+    private final TtsService ttsService;
 
     public ChatService(ChatClient chatClient, ChatSessionRepository sessions,
                        MessageRepository messages, UserRepository users,
                        SimpMessagingTemplate ws, FileTools fileTools,
-                       ExecTools execTools, GitHubTools githubTools) {
+                       ExecTools execTools, GitHubTools githubTools,
+                       TtsService ttsService) {
         this.chatClient = chatClient;
         this.sessions = sessions;
         this.messages = messages;
@@ -38,6 +40,7 @@ public class ChatService {
         this.fileTools = fileTools;
         this.execTools = execTools;
         this.githubTools = githubTools;
+        this.ttsService = ttsService;
     }
 
     @Transactional
@@ -80,8 +83,9 @@ public class ChatService {
                     : new AssistantMessage(m.getContent()))
                 .toList();
 
-        // Stream tokens to WebSocket; StringBuffer is thread-safe (doOnNext may run on I/O thread)
-        StringBuffer full = new StringBuffer();
+        StringBuilder full = new StringBuilder();
+        StringBuilder sentenceBuffer = new StringBuilder();
+
         chatClient.prompt()
             .messages(history)
             .tools(fileTools, execTools, githubTools)
@@ -89,9 +93,25 @@ public class ChatService {
             .content()
             .doOnNext(token -> {
                 full.append(token);
+                sentenceBuffer.append(token);
                 ws.convertAndSend("/topic/chat/" + sessionId, token);
+
+                // Flush sentence when punctuation detected
+                String buf = sentenceBuffer.toString();
+                int boundary = findSentenceBoundary(buf);
+                if (boundary > 0) {
+                    String sentence = buf.substring(0, boundary).trim();
+                    sentenceBuffer.delete(0, boundary);
+                    ttsService.streamSentence(sessionId.toString(), sentence);
+                }
             })
             .blockLast();
+
+        // Flush any remaining buffer
+        String remaining = sentenceBuffer.toString().trim();
+        if (!remaining.isEmpty()) {
+            ttsService.streamSentence(sessionId.toString(), remaining);
+        }
 
         // Save assistant response
         var assistantMsg = new Message();
@@ -102,5 +122,15 @@ public class ChatService {
 
         // Signal end of stream
         ws.convertAndSend("/topic/chat/" + sessionId, "[DONE]");
+    }
+
+    private int findSentenceBoundary(String text) {
+        for (int i = text.length() - 1; i >= 0; i--) {
+            char c = text.charAt(i);
+            if (c == '.' || c == '?' || c == '!' || c == '\n') {
+                return i + 1;
+            }
+        }
+        return -1;
     }
 }
