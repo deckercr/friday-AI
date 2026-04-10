@@ -5,4 +5,4 @@ CREATE TABLE chat_sessions (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_chat_sessions_user_id ON chat_sessions(user_id);
+CREATE INDEX idx_chat_sessions_user_id ON chat_sessions(user_id, created_at DESC);

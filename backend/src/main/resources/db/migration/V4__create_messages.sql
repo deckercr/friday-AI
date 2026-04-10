@@ -6,4 +6,4 @@ CREATE TABLE messages (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_messages_session_id ON messages(session_id);
+CREATE INDEX idx_messages_session_id ON messages(session_id, created_at ASC);
