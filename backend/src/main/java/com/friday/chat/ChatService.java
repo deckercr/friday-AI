@@ -10,7 +10,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 public class ChatService {
@@ -40,11 +39,13 @@ public class ChatService {
         return sessions.save(session);
     }
 
+    @Transactional(readOnly = true)
     public List<ChatSession> getSessionsForUser(String username) {
         var user = users.findByUsername(username).orElseThrow();
         return sessions.findByUserOrderByCreatedAtDesc(user);
     }
 
+    @Transactional(readOnly = true)
     public List<Message> getMessages(UUID sessionId) {
         var session = sessions.findById(sessionId).orElseThrow();
         return messages.findBySessionOrderByCreatedAtAsc(session);
@@ -67,10 +68,10 @@ public class ChatService {
                 .map(m -> m.getRole().equals("user")
                     ? (org.springframework.ai.chat.messages.Message) new UserMessage(m.getContent())
                     : new AssistantMessage(m.getContent()))
-                .collect(Collectors.toList());
+                .toList();
 
-        // Stream tokens to WebSocket, collect full response
-        StringBuilder full = new StringBuilder();
+        // Stream tokens to WebSocket; StringBuffer is thread-safe (doOnNext may run on I/O thread)
+        StringBuffer full = new StringBuffer();
         chatClient.prompt()
             .messages(history)
             .stream()
