@@ -56,7 +56,7 @@ public class AuthController {
             .maxAge(Duration.ofSeconds(0))
             .sameSite("Strict")
             .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, clearCookie.toHeaderValue());
+        response.addHeader(HttpHeaders.SET_COOKIE, clearCookie.toString());
         return ResponseEntity.noContent().build();
     }
 
@@ -68,6 +68,6 @@ public class AuthController {
             .maxAge(Duration.ofDays(7))
             .sameSite("Strict")
             .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toHeaderValue());
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 }
