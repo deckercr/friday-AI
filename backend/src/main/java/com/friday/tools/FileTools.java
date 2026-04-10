@@ -43,14 +43,15 @@ public class FileTools {
         staging.stage(relativePath, content);
     }
 
-    @Tool(description = "List files in a directory within the project. Path is relative to project root.")
+    @Tool(description = "List immediate children of a directory within the project (non-recursive). Path is relative to project root.")
     public String listFiles(String relativePath) {
         Path target = resolve(relativePath);
         try (Stream<Path> stream = Files.list(target)) {
-            return stream
+            String result = stream
                 .map(p -> projectRoot.relativize(p).toString())
                 .sorted()
                 .collect(Collectors.joining("\n"));
+            return result.isEmpty() ? "(empty directory)" : result;
         } catch (IOException e) {
             return "Error listing directory: " + e.getMessage();
         }
