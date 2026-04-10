@@ -1,6 +1,9 @@
 package com.friday.chat;
 
 import com.friday.auth.UserRepository;
+import com.friday.tools.ExecTools;
+import com.friday.tools.FileTools;
+import com.friday.tools.GitHubTools;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -19,15 +22,22 @@ public class ChatService {
     private final MessageRepository messages;
     private final UserRepository users;
     private final SimpMessagingTemplate ws;
+    private final FileTools fileTools;
+    private final ExecTools execTools;
+    private final GitHubTools githubTools;
 
     public ChatService(ChatClient chatClient, ChatSessionRepository sessions,
                        MessageRepository messages, UserRepository users,
-                       SimpMessagingTemplate ws) {
+                       SimpMessagingTemplate ws, FileTools fileTools,
+                       ExecTools execTools, GitHubTools githubTools) {
         this.chatClient = chatClient;
         this.sessions = sessions;
         this.messages = messages;
         this.users = users;
         this.ws = ws;
+        this.fileTools = fileTools;
+        this.execTools = execTools;
+        this.githubTools = githubTools;
     }
 
     @Transactional
@@ -74,6 +84,7 @@ public class ChatService {
         StringBuffer full = new StringBuffer();
         chatClient.prompt()
             .messages(history)
+            .tools(fileTools, execTools, githubTools)
             .stream()
             .content()
             .doOnNext(token -> {
