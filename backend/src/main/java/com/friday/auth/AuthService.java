@@ -1,6 +1,5 @@
 package com.friday.auth;
 
-import com.friday.auth.dto.AuthResponse;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -29,30 +28,6 @@ public class AuthService {
         this.refreshTokens = refreshTokens;
         this.jwt = jwt;
         this.encoder = encoder;
-    }
-
-    @Transactional
-    public AuthResponse login(String username, String password) {
-        User user = users.findByUsername(username)
-            .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
-        if (!encoder.matches(password, user.getPasswordHash())) {
-            throw new BadCredentialsException("Invalid credentials");
-        }
-        return new AuthResponse(jwt.generateAccessToken(username));
-    }
-
-    @Transactional
-    public String issueRefreshToken(String username) {
-        String raw = UUID.randomUUID().toString();
-        String hash = sha256(raw);
-
-        RefreshToken rt = new RefreshToken();
-        rt.setUser(users.findByUsername(username).orElseThrow());
-        rt.setTokenHash(hash);
-        rt.setExpiresAt(Instant.now().plus(7, ChronoUnit.DAYS));
-        refreshTokens.save(rt);
-
-        return raw;
     }
 
     @Transactional
@@ -93,7 +68,7 @@ public class AuthService {
         String newRaw = UUID.randomUUID().toString();
         String newHash = sha256(newRaw);
         RefreshToken newRt = new RefreshToken();
-        newRt.setUser(users.findByUsername(username).orElseThrow());
+        newRt.setUser(rt.getUser());
         newRt.setTokenHash(newHash);
         newRt.setExpiresAt(Instant.now().plus(7, ChronoUnit.DAYS));
         refreshTokens.save(newRt);
