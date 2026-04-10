@@ -40,8 +40,7 @@ public class JwtService {
 
     public boolean isValid(String token, String username) {
         try {
-            return extractUsername(token).equals(username)
-                && !parseClaims(token).getExpiration().before(new Date());
+            return parseClaims(token).getSubject().equals(username);
         } catch (JwtException e) {
             return false;
         }
