@@ -16,6 +16,8 @@ import java.util.UUID;
 @Service
 public class AuthService {
 
+    public record AuthTokens(String accessToken, String rawRefreshToken) {}
+
     private final UserRepository users;
     private final RefreshTokenRepository refreshTokens;
     private final JwtService jwt;
@@ -54,15 +56,49 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthResponse refresh(String rawToken) {
+    public AuthTokens authenticate(String username, String password) {
+        User user = users.findByUsername(username)
+            .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
+        if (!encoder.matches(password, user.getPasswordHash())) {
+            throw new BadCredentialsException("Invalid credentials");
+        }
+        // Clear old refresh tokens for this user
+        refreshTokens.deleteAllByUserId(user.getId());
+
+        // Issue new opaque refresh token
+        String raw = UUID.randomUUID().toString();
+        String hash = sha256(raw);
+        RefreshToken rt = new RefreshToken();
+        rt.setUser(user);
+        rt.setTokenHash(hash);
+        rt.setExpiresAt(Instant.now().plus(7, ChronoUnit.DAYS));
+        refreshTokens.save(rt);
+
+        return new AuthTokens(jwt.generateAccessToken(username), raw);
+    }
+
+    @Transactional
+    public AuthTokens refresh(String rawToken) {
         String hash = sha256(rawToken);
         RefreshToken rt = refreshTokens.findByTokenHash(hash)
             .orElseThrow(() -> new BadCredentialsException("Invalid refresh token"));
         if (rt.getExpiresAt().isBefore(Instant.now())) {
+            refreshTokens.delete(rt);
             throw new BadCredentialsException("Refresh token expired");
         }
         String username = rt.getUser().getUsername();
-        return new AuthResponse(jwt.generateAccessToken(username));
+
+        // Rotate: delete consumed token, issue new one
+        refreshTokens.delete(rt);
+        String newRaw = UUID.randomUUID().toString();
+        String newHash = sha256(newRaw);
+        RefreshToken newRt = new RefreshToken();
+        newRt.setUser(users.findByUsername(username).orElseThrow());
+        newRt.setTokenHash(newHash);
+        newRt.setExpiresAt(Instant.now().plus(7, ChronoUnit.DAYS));
+        refreshTokens.save(newRt);
+
+        return new AuthTokens(jwt.generateAccessToken(username), newRaw);
     }
 
     @Transactional
