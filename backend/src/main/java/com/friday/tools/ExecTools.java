@@ -50,6 +50,11 @@ public class ExecTools {
     public String executeCommand(String command) {
         String trimmed = command.trim();
 
+        // Reject shell metacharacters that enable injection (chaining, pipes, redirects, subshells)
+        if (trimmed.matches(".*[;&|><`$\\\\].*")) {
+            return "Command blocked by security policy: shell metacharacters not allowed";
+        }
+
         for (String blocked : BLOCKED_PATTERNS) {
             if (trimmed.contains(blocked)) {
                 return "Command blocked by security policy: contains '" + blocked + "'";
@@ -71,6 +76,7 @@ public class ExecTools {
             boolean finished = process.waitFor(30, TimeUnit.SECONDS);
             if (!finished) {
                 process.destroyForcibly();
+                try { process.getInputStream().close(); } catch (Exception ignored) {}
                 return "Command timed out after 30 seconds";
             }
 
