@@ -8,10 +8,10 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 
 import java.util.Optional;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @SpringBootTest
@@ -24,8 +24,8 @@ class ChatServiceTest {
 
     @Test
     void createSession_returnsSessionWithTitle() {
-        User user = new User();
-        user.setUsername("alice");
+        User user = mock(User.class);
+        when(user.getUsername()).thenReturn("alice");
         when(userRepo.findByUsername("alice")).thenReturn(Optional.of(user));
 
         ChatSession session = new ChatSession();
