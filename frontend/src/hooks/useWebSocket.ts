@@ -18,12 +18,15 @@ export function useWebSocket() {
     client.activate()
     clientRef.current = client
 
-    return () => { client.deactivate() }
+    return () => {
+      client.deactivate()
+      clientRef.current = null
+    }
   }, [accessToken])
 
   const subscribe = useCallback((destination: string, callback: (body: string | Uint8Array) => void) => {
     const client = clientRef.current
-    if (!client) return () => {}
+    if (!client?.connected) return () => {}
     const sub = client.subscribe(destination, (frame) => {
       callback(frame.isBinaryBody ? frame.binaryBody : frame.body)
     })
@@ -31,10 +34,9 @@ export function useWebSocket() {
   }, [])
 
   const send = useCallback((destination: string, body: object) => {
-    clientRef.current?.publish({
-      destination,
-      body: JSON.stringify(body),
-    })
+    const client = clientRef.current
+    if (!client?.connected) return
+    client.publish({ destination, body: JSON.stringify(body) })
   }, [])
 
   return { subscribe, send }
