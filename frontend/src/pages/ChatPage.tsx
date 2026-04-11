@@ -29,10 +29,15 @@ export default function ChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  const loadingSessionRef = useRef<string | null>(null)
+
   async function loadSession(session: ChatSession) {
     setActiveSession(session)
+    loadingSessionRef.current = session.id
     const msgs = await getMessages(session.id)
-    setMessages(msgs)
+    if (loadingSessionRef.current === session.id) {
+      setMessages(msgs)
+    }
   }
 
   useEffect(() => {
