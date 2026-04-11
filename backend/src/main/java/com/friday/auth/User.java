@@ -30,7 +30,14 @@ public class User {
     public void setUsername(String username) { this.username = username; }
     public String getPasswordHash() { return passwordHash; }
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+    public static final java.util.Set<String> VALID_ROLES = java.util.Set.of("USER", "ADMIN");
+
     public String getRole() { return role; }
-    public void setRole(String role) { this.role = role; }
+    public void setRole(String role) {
+        if (!VALID_ROLES.contains(role)) {
+            throw new IllegalArgumentException("Invalid role: " + role + ". Must be one of: " + VALID_ROLES);
+        }
+        this.role = role;
+    }
     public Instant getCreatedAt() { return createdAt; }
 }
