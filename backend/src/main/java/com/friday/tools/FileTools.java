@@ -29,8 +29,9 @@ public class FileTools {
 
     @Tool(description = "Read a file from the friday-AI project. Path is relative to project root.")
     public String readFile(String relativePath) {
-        resolve(relativePath); // validate path before checking staging
-        String staged = staging.getStagedContent(relativePath);
+        Path resolved = resolve(relativePath);
+        String normalizedPath = projectRoot.relativize(resolved).toString();
+        String staged = staging.getStagedContent(normalizedPath);
         if (staged != null) return staged;
         Path target = resolve(relativePath);
         try {
@@ -42,8 +43,9 @@ public class FileTools {
 
     @Tool(description = "Stage a file write for review. The change will not be committed until the user approves.")
     public void writeFile(String relativePath, String content) {
-        resolve(relativePath); // validates path — throws SecurityException on traversal
-        staging.stage(relativePath, content);
+        Path resolved = resolve(relativePath);
+        String normalizedPath = projectRoot.relativize(resolved).toString();
+        staging.stage(normalizedPath, content);
     }
 
     @Tool(description = "List immediate children of a directory within the project (non-recursive). Path is relative to project root.")
