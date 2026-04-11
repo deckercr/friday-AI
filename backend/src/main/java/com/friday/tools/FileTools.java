@@ -29,6 +29,9 @@ public class FileTools {
 
     @Tool(description = "Read a file from the friday-AI project. Path is relative to project root.")
     public String readFile(String relativePath) {
+        resolve(relativePath); // validate path before checking staging
+        String staged = staging.getStagedContent(relativePath);
+        if (staged != null) return staged;
         Path target = resolve(relativePath);
         try {
             return Files.readString(target);
