@@ -8,6 +8,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -73,19 +74,28 @@ public class ExecTools {
             pb.redirectErrorStream(true);
             Process process = pb.start();
 
+            // Drain stdout concurrently to prevent pipe-buffer deadlock: if the child
+            // writes enough output to fill the OS pipe buffer before we read it,
+            // waitFor() would block forever waiting for the child to exit while the
+            // child blocks waiting for the buffer to drain.
+            CompletableFuture<String> outputFuture = CompletableFuture.supplyAsync(() -> {
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(process.getInputStream()))) {
+                    return reader.lines()
+                        .limit(200)
+                        .collect(Collectors.joining("\n"));
+                } catch (Exception e) {
+                    return "";
+                }
+            });
+
             boolean finished = process.waitFor(30, TimeUnit.SECONDS);
             if (!finished) {
                 process.destroyForcibly();
-                try { process.getInputStream().close(); } catch (Exception ignored) {}
                 return "Command timed out after 30 seconds";
             }
 
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(process.getInputStream()))) {
-                return reader.lines()
-                    .limit(200)
-                    .collect(Collectors.joining("\n"));
-            }
+            return outputFuture.get(5, TimeUnit.SECONDS);
         } catch (Exception e) {
             return "Error executing command: " + e.getMessage();
         }
