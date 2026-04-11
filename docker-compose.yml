@@ -127,10 +127,15 @@ services:
       GITHUB_REPO: deckercr/friday-AI
       PROJECT_ROOT: /workspace
     volumes:
-      # Friday AI tool access — grants read/write to full project including docker-compose.yml and .env
-      # This is intentional: the AI agent modifies source files for PR proposals.
-      # Do not add secrets to this directory that should not be AI-readable.
-      - /home/deckercr/projects/friday-AI:/workspace
+      # Source tree for AI agent file tools (read-only — writes go through StagingArea in memory,
+      # never directly to disk). Set FRIDAY_PROJECT_ROOT in .env to an absolute path for CI or
+      # non-standard layouts; defaults to the directory where docker compose is run.
+      #
+      # WARNING: everything under this mount is readable by the AI agent, including any .env file
+      # at the repo root. Keep real secrets in the environment block above (which reads from the
+      # host .env at compose time and passes them as container env vars, not as files in the
+      # workspace) and never commit secrets to the source tree.
+      - ${FRIDAY_PROJECT_ROOT:-.}:/workspace:ro
     ports:
       - "8081:8081"
     networks:
