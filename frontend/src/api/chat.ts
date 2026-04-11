@@ -20,6 +20,6 @@ export async function createSession(title: string): Promise<ChatSession> {
 }
 
 export async function getMessages(sessionId: string): Promise<Message[]> {
-  const res = await api.get<Message[]>(`/api/sessions/${sessionId}/messages`, { headers: authHeader() })
+  const res = await api.get<Message[]>(`/api/sessions/${encodeURIComponent(sessionId)}/messages`, { headers: authHeader() })
   return res.data
 }
