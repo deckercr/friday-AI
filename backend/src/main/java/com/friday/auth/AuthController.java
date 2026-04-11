@@ -32,7 +32,7 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest req,
                                                HttpServletResponse response) {
-        AuthService.AuthTokens tokens = authService.authenticate(req.username(), req.password());
+        AuthService.AuthTokens tokens = authService.authenticate(req.getUsername(), req.getPassword());
         addRefreshCookie(response, tokens.rawRefreshToken());
         return ResponseEntity.ok(new AuthResponse(tokens.accessToken()));
     }
