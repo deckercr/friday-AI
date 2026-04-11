@@ -1,3 +1,5 @@
 package com.friday.chat.dto;
 
-public record ChatMessage(String sessionId, String content) {}
+import java.util.UUID;
+
+public record ChatMessage(UUID sessionId, String content) {}

@@ -26,7 +26,7 @@ public class ChatController {
                                @AuthenticationPrincipal UserDetails user) {
         chatService.streamResponse(
             user.getUsername(),
-            UUID.fromString(msg.sessionId()),
+            msg.sessionId(),
             msg.content()
         );
     }
