@@ -19,7 +19,15 @@ export function useAudioQueue() {
     playing.current = true
     const buf = queue.current.shift()!
     const ctx = getContext()
-    const decoded = await ctx.decodeAudioData(buf)
+    let decoded: AudioBuffer
+    try {
+      decoded = await ctx.decodeAudioData(buf)
+    } catch {
+      // Bad chunk — drop it and continue draining the queue.
+      playing.current = false
+      playNext(gen)
+      return
+    }
     // A clear() may have fired while decodeAudioData was awaited — bail out.
     if (gen !== clearGen.current) {
       playing.current = false
