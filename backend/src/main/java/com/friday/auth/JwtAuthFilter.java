@@ -5,6 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -39,6 +40,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         try {
             username = jwtService.extractUsername(token);
         } catch (Exception e) {
+            // Malformed or expired JWT — proceed without authentication
             chain.doFilter(req, res);
             return;
         }
@@ -52,9 +54,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(req));
                     SecurityContextHolder.getContext().setAuthentication(auth);
                 }
-            } catch (Exception e) {
-                // Unknown user or DB error — proceed unauthenticated; security rules deny access
+            } catch (AuthenticationException e) {
+                // Unknown user — proceed unauthenticated; security rules will deny access
             }
+            // Any other exception (e.g. DB outage) propagates as a 500
         }
         chain.doFilter(req, res);
     }
