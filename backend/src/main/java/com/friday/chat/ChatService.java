@@ -76,7 +76,7 @@ public class ChatService {
     }
 
     public void streamResponse(String username, UUID sessionId, String userContent) {
-        ChatSession session = loadSession(sessionId);
+        ChatSession session = loadSession(username, sessionId);
 
         saveUserMessage(session, userContent);
         memoryService.save(sessionId.toString(), "user", userContent);
@@ -128,8 +128,12 @@ public class ChatService {
     }
 
     @Transactional(readOnly = true)
-    ChatSession loadSession(UUID sessionId) {
-        return sessions.findById(sessionId).orElseThrow();
+    ChatSession loadSession(String username, UUID sessionId) {
+        ChatSession session = sessions.findById(sessionId).orElseThrow();
+        if (!session.getUser().getUsername().equals(username)) {
+            throw new org.springframework.security.access.AccessDeniedException("Session not found");
+        }
+        return session;
     }
 
     @Transactional(readOnly = true)
