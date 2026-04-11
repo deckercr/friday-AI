@@ -72,28 +72,16 @@ public class ChatService {
         return messages.findBySessionOrderByCreatedAtAsc(session);
     }
 
-    @Transactional
     public void streamResponse(String username, UUID sessionId, String userContent) {
-        var session = sessions.findById(sessionId).orElseThrow();
+        ChatSession session = loadSession(sessionId);
 
-        // Save user message
-        var userMsg = new Message();
-        userMsg.setSession(session);
-        userMsg.setRole("user");
-        userMsg.setContent(userContent);
-        messages.save(userMsg);
+        saveUserMessage(session, userContent);
         memoryService.save(sessionId.toString(), "user", userContent);
 
-        // Build conversation history for context
-        List<org.springframework.ai.chat.messages.Message> history =
-            messages.findBySessionOrderByCreatedAtAsc(session).stream()
-                .map(m -> m.getRole().equals("user")
-                    ? (org.springframework.ai.chat.messages.Message) new UserMessage(m.getContent())
-                    : new AssistantMessage(m.getContent()))
-                .toList();
+        List<org.springframework.ai.chat.messages.Message> history = buildHistory(session);
 
-        StringBuilder full = new StringBuilder();
-        StringBuilder sentenceBuffer = new StringBuilder();
+        StringBuffer full = new StringBuffer();
+        StringBuffer sentenceBuffer = new StringBuffer();
 
         chatClient.prompt()
             .messages(history)
@@ -122,12 +110,7 @@ public class ChatService {
             ttsService.streamSentence(sessionId.toString(), remaining);
         }
 
-        // Save assistant response
-        var assistantMsg = new Message();
-        assistantMsg.setSession(session);
-        assistantMsg.setRole("assistant");
-        assistantMsg.setContent(full.toString());
-        messages.save(assistantMsg);
+        saveAssistantMessage(session, full.toString());
         memoryService.save(sessionId.toString(), "assistant", full.toString());
 
         // Signal end of stream
@@ -141,8 +124,40 @@ public class ChatService {
         }
     }
 
+    @Transactional(readOnly = true)
+    ChatSession loadSession(UUID sessionId) {
+        return sessions.findById(sessionId).orElseThrow();
+    }
+
+    @Transactional(readOnly = true)
+    List<org.springframework.ai.chat.messages.Message> buildHistory(ChatSession session) {
+        return messages.findBySessionOrderByCreatedAtAsc(session).stream()
+            .map(m -> m.getRole().equals("user")
+                ? (org.springframework.ai.chat.messages.Message) new UserMessage(m.getContent())
+                : new AssistantMessage(m.getContent()))
+            .toList();
+    }
+
+    @Transactional
+    Message saveUserMessage(ChatSession session, String content) {
+        var msg = new Message();
+        msg.setSession(session);
+        msg.setRole("user");
+        msg.setContent(content);
+        return messages.save(msg);
+    }
+
+    @Transactional
+    Message saveAssistantMessage(ChatSession session, String content) {
+        var msg = new Message();
+        msg.setSession(session);
+        msg.setRole("assistant");
+        msg.setContent(content);
+        return messages.save(msg);
+    }
+
     private int findSentenceBoundary(String text) {
-        for (int i = text.length() - 1; i >= 0; i--) {
+        for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
             if (c == '.' || c == '?' || c == '!' || c == '\n') {
                 return i + 1;
