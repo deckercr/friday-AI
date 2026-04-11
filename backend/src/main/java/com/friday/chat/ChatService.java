@@ -4,6 +4,7 @@ import com.friday.auth.UserRepository;
 import com.friday.tools.ExecTools;
 import com.friday.tools.FileTools;
 import com.friday.tools.GitHubTools;
+import com.friday.tools.StagingArea;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -26,12 +28,13 @@ public class ChatService {
     private final ExecTools execTools;
     private final GitHubTools githubTools;
     private final TtsService ttsService;
+    private final StagingArea staging;
 
     public ChatService(ChatClient chatClient, ChatSessionRepository sessions,
                        MessageRepository messages, UserRepository users,
                        SimpMessagingTemplate ws, FileTools fileTools,
                        ExecTools execTools, GitHubTools githubTools,
-                       TtsService ttsService) {
+                       TtsService ttsService, StagingArea staging) {
         this.chatClient = chatClient;
         this.sessions = sessions;
         this.messages = messages;
@@ -41,6 +44,7 @@ public class ChatService {
         this.execTools = execTools;
         this.githubTools = githubTools;
         this.ttsService = ttsService;
+        this.staging = staging;
     }
 
     @Transactional
@@ -122,6 +126,13 @@ public class ChatService {
 
         // Signal end of stream
         ws.convertAndSend("/topic/chat/" + sessionId, "[DONE]");
+
+        // Notify UI if AI staged file changes for review
+        if (staging.hasStagedChanges()) {
+            String diff = fileTools.getDiff();
+            ws.convertAndSend("/topic/review/" + sessionId,
+                Map.of("sessionId", sessionId.toString(), "diff", diff));
+        }
     }
 
     private int findSentenceBoundary(String text) {
