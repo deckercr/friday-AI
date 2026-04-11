@@ -73,11 +73,11 @@ class GitHubToolsTest {
                     {"sha":"blobsha1"}
                     """)));
 
-        // Stub get tree
-        wireMock.stubFor(get(urlPathMatching("/repos/owner/repo/git/trees/abc123"))
+        // Stub get commit to extract tree SHA
+        wireMock.stubFor(get(urlPathMatching("/repos/owner/repo/git/commits/abc123"))
             .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "application/json")
                 .withBody("""
-                    {"sha":"abc123","tree":[]}
+                    {"sha":"abc123","tree":{"sha":"treesha0"}}
                     """)));
 
         // Stub create tree

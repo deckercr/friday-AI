@@ -64,9 +64,9 @@ public class GitHubApiClient {
 
     public String getTreeSha(String commitSha) {
         JsonNode node = restClient.get()
-            .uri("/repos/" + repo + "/git/trees/" + commitSha)
+            .uri("/repos/" + repo + "/git/commits/" + commitSha)
             .retrieve().body(JsonNode.class);
-        return node.path("sha").asText();
+        return node.path("tree").path("sha").asText();
     }
 
     public String createTree(String baseTreeSha, Map<String, String> files) {
