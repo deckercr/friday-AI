@@ -31,11 +31,14 @@ export default function ReviewPage() {
     }
   }
 
-  function handleReject() {
-    axios.post('/api/review/reject', { sessionId },
-      { headers: { Authorization: `Bearer ${accessToken}` } })
-    clearReview()
-    navigate('/chat')
+  async function handleReject() {
+    try {
+      await axios.post('/api/review/reject', { sessionId },
+        { headers: { Authorization: `Bearer ${accessToken}` } })
+    } finally {
+      clearReview()
+      navigate('/chat')
+    }
   }
 
   if (!pendingDiff && !prUrl) {
