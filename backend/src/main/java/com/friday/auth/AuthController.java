@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
@@ -20,9 +21,12 @@ import java.util.Arrays;
 public class AuthController {
 
     private final AuthService authService;
+    private final boolean cookieSecure;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService,
+                          @Value("${app.cookie.secure:true}") boolean cookieSecure) {
         this.authService = authService;
+        this.cookieSecure = cookieSecure;
     }
 
     @PostMapping("/login")
@@ -63,7 +67,7 @@ public class AuthController {
     private void addRefreshCookie(HttpServletResponse response, String token) {
         ResponseCookie cookie = ResponseCookie.from("refreshToken", token)
             .httpOnly(true)
-            .secure(false) // Set to true when HTTPS is enabled
+            .secure(cookieSecure)
             .path("/auth")
             .maxAge(Duration.ofDays(7))
             .sameSite("Strict")
