@@ -5,6 +5,7 @@ import com.friday.tools.ExecTools;
 import com.friday.tools.FileTools;
 import com.friday.tools.GitHubTools;
 import com.friday.tools.StagingArea;
+import com.friday.vector.ConversationMemoryService;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -29,12 +30,14 @@ public class ChatService {
     private final GitHubTools githubTools;
     private final TtsService ttsService;
     private final StagingArea staging;
+    private final ConversationMemoryService memoryService;
 
     public ChatService(ChatClient chatClient, ChatSessionRepository sessions,
                        MessageRepository messages, UserRepository users,
                        SimpMessagingTemplate ws, FileTools fileTools,
                        ExecTools execTools, GitHubTools githubTools,
-                       TtsService ttsService, StagingArea staging) {
+                       TtsService ttsService, StagingArea staging,
+                       ConversationMemoryService memoryService) {
         this.chatClient = chatClient;
         this.sessions = sessions;
         this.messages = messages;
@@ -45,6 +48,7 @@ public class ChatService {
         this.githubTools = githubTools;
         this.ttsService = ttsService;
         this.staging = staging;
+        this.memoryService = memoryService;
     }
 
     @Transactional
@@ -78,6 +82,7 @@ public class ChatService {
         userMsg.setRole("user");
         userMsg.setContent(userContent);
         messages.save(userMsg);
+        memoryService.save(sessionId.toString(), "user", userContent);
 
         // Build conversation history for context
         List<org.springframework.ai.chat.messages.Message> history =
@@ -123,6 +128,7 @@ public class ChatService {
         assistantMsg.setRole("assistant");
         assistantMsg.setContent(full.toString());
         messages.save(assistantMsg);
+        memoryService.save(sessionId.toString(), "assistant", full.toString());
 
         // Signal end of stream
         ws.convertAndSend("/topic/chat/" + sessionId, "[DONE]");
