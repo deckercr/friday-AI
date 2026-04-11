@@ -40,28 +40,23 @@ public class GitHubTools {
             return "No staged changes to commit.";
         }
 
-        try {
-            String baseSha = github.getDefaultBranchSha();
-            github.createBranch(branchName, baseSha);
+        String baseSha = github.getDefaultBranchSha();
+        github.createBranch(branchName, baseSha);
 
-            // Create blobs for each staged file
-            Map<String, String> fileShas = new HashMap<>();
-            staging.getAllStaged().forEach((path, content) -> {
-                String blobSha = github.createBlob(content);
-                fileShas.put(path, blobSha);
-            });
+        Map<String, String> fileShas = new HashMap<>();
+        staging.getAllStaged().forEach((path, content) -> {
+            String blobSha = github.createBlob(content);
+            fileShas.put(path, blobSha);
+        });
 
-            String baseTreeSha = github.getTreeSha(baseSha);
-            String newTreeSha = github.createTree(baseTreeSha, fileShas);
-            String commitSha = github.createCommit(title, newTreeSha, baseSha);
-            github.updateBranchRef(branchName, commitSha);
+        String baseTreeSha = github.getTreeSha(baseSha);
+        String newTreeSha = github.createTree(baseTreeSha, fileShas);
+        String commitSha = github.createCommit(title, newTreeSha, baseSha);
+        github.updateBranchRef(branchName, commitSha);
 
-            String prUrl = github.createPullRequest(branchName, title, body);
-            staging.clear();
+        String prUrl = github.createPullRequest(branchName, title, body);
+        staging.clear();
 
-            return "PR created: " + prUrl;
-        } catch (Exception e) {
-            return "Failed to create PR: " + e.getMessage();
-        }
+        return prUrl;
     }
 }
