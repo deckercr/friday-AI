@@ -14,7 +14,7 @@ export default function AudioPlayer({ sessionId, subscribe, muted }: Props) {
     clear()
     const unsub = subscribe(`/topic/audio/${sessionId}`, (data) => {
       if (!muted && data instanceof Uint8Array) {
-        enqueue(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength))
+        enqueue(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer)
       }
     })
     return unsub
