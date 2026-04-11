@@ -20,7 +20,7 @@ export default function ReviewPage() {
     try {
       const res = await axios.post('/api/review/approve',
         { branchName, title: prTitle, sessionId },
-        { headers: { Authorization: `Bearer ${accessToken}` } }
+        { headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {} }
       )
       setPrUrl(res.data.prUrl)
       clearReview()
@@ -34,7 +34,7 @@ export default function ReviewPage() {
   async function handleReject() {
     try {
       await axios.post('/api/review/reject', { sessionId },
-        { headers: { Authorization: `Bearer ${accessToken}` } })
+        { headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {} })
     } finally {
       clearReview()
       navigate('/chat')
