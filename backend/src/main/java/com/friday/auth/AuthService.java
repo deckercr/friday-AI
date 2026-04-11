@@ -55,21 +55,28 @@ public class AuthService {
     @Transactional
     public AuthTokens refresh(String rawToken) {
         String hash = sha256(rawToken);
+
+        // Read first to get user + expiry before consuming the token
         RefreshToken rt = refreshTokens.findByTokenHash(hash)
             .orElseThrow(() -> new BadCredentialsException("Invalid refresh token"));
         if (rt.getExpiresAt().isBefore(Instant.now())) {
-            refreshTokens.delete(rt);
+            refreshTokens.deleteByTokenHash(hash);
             throw new BadCredentialsException("Refresh token expired");
         }
-        String username = rt.getUser().getUsername();
+        User user = rt.getUser();
+        String username = user.getUsername();
 
-        // Rotate: delete consumed token, issue new one
-        refreshTokens.delete(rt);
+        // Atomically consume: exactly one concurrent caller will delete 1 row; the rest get 0.
+        int consumed = refreshTokens.deleteByTokenHash(hash);
+        if (consumed == 0) {
+            throw new BadCredentialsException("Refresh token already consumed");
+        }
+
+        // Issue replacement token
         String newRaw = UUID.randomUUID().toString();
-        String newHash = sha256(newRaw);
         RefreshToken newRt = new RefreshToken();
-        newRt.setUser(rt.getUser());
-        newRt.setTokenHash(newHash);
+        newRt.setUser(user);
+        newRt.setTokenHash(sha256(newRaw));
         newRt.setExpiresAt(Instant.now().plus(7, ChronoUnit.DAYS));
         refreshTokens.save(newRt);
 
