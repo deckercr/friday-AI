@@ -39,6 +39,7 @@ export default function ChatPage() {
     if (!activeSession) return
 
     let assistantContent = ''
+    const streamingId = `streaming-${crypto.randomUUID()}`
 
     const unsub = subscribe(`/topic/chat/${activeSession.id}`, (data) => {
       const token = data as string
@@ -49,11 +50,11 @@ export default function ChatPage() {
       assistantContent += token
       setMessages(prev => {
         const last = prev[prev.length - 1]
-        if (last?.role === 'assistant' && last.id === 'streaming') {
+        if (last?.role === 'assistant' && last.id === streamingId) {
           return [...prev.slice(0, -1), { ...last, content: assistantContent }]
         }
         return [...prev, {
-          id: 'streaming', sessionId: activeSession.id,
+          id: streamingId, sessionId: activeSession.id,
           role: 'assistant', content: assistantContent, createdAt: new Date().toISOString()
         }]
       })
