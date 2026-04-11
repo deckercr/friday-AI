@@ -57,9 +57,11 @@ public class ChatController {
     }
 
     @GetMapping("/api/sessions/{id}/messages")
-    public ResponseEntity<List<Map<String, Object>>> getMessages(@PathVariable UUID id) {
+    public ResponseEntity<List<Map<String, Object>>> getMessages(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserDetails user) {
         return ResponseEntity.ok(
-            chatService.getMessages(id).stream()
+            chatService.getMessages(user.getUsername(), id).stream()
                 .map(m -> Map.<String, Object>of(
                     "id", m.getId(),
                     "sessionId", id,

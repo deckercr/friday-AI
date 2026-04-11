@@ -67,8 +67,11 @@ public class ChatService {
     }
 
     @Transactional(readOnly = true)
-    public List<Message> getMessages(UUID sessionId) {
+    public List<Message> getMessages(String username, UUID sessionId) {
         var session = sessions.findById(sessionId).orElseThrow();
+        if (!session.getUser().getUsername().equals(username)) {
+            throw new org.springframework.security.access.AccessDeniedException("Session not found");
+        }
         return messages.findBySessionOrderByCreatedAtAsc(session);
     }
 
