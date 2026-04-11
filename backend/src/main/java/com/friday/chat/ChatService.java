@@ -86,26 +86,31 @@ public class ChatService {
         StringBuffer full = new StringBuffer();
         StringBuffer sentenceBuffer = new StringBuffer();
 
-        chatClient.prompt()
-            .messages(history)
-            .tools(fileTools, execTools, githubTools)
-            .stream()
-            .content()
-            .doOnNext(token -> {
-                full.append(token);
-                sentenceBuffer.append(token);
-                ws.convertAndSend("/topic/chat/" + sessionId, token);
+        FileTools.setSession(sessionId);
+        try {
+            chatClient.prompt()
+                .messages(history)
+                .tools(fileTools, execTools, githubTools)
+                .stream()
+                .content()
+                .doOnNext(token -> {
+                    full.append(token);
+                    sentenceBuffer.append(token);
+                    ws.convertAndSend("/topic/chat/" + sessionId, token);
 
-                // Flush sentence when punctuation detected
-                String buf = sentenceBuffer.toString();
-                int boundary = findSentenceBoundary(buf);
-                if (boundary > 0) {
-                    String sentence = buf.substring(0, boundary).trim();
-                    sentenceBuffer.delete(0, boundary);
-                    ttsService.streamSentence(sessionId.toString(), sentence);
-                }
-            })
-            .blockLast();
+                    // Flush sentence when punctuation detected
+                    String buf = sentenceBuffer.toString();
+                    int boundary = findSentenceBoundary(buf);
+                    if (boundary > 0) {
+                        String sentence = buf.substring(0, boundary).trim();
+                        sentenceBuffer.delete(0, boundary);
+                        ttsService.streamSentence(sessionId.toString(), sentence);
+                    }
+                })
+                .blockLast();
+        } finally {
+            FileTools.clearSession();
+        }
 
         // Flush any remaining buffer
         String remaining = sentenceBuffer.toString().trim();
@@ -120,8 +125,8 @@ public class ChatService {
         ws.convertAndSend("/topic/chat/" + sessionId, "[DONE]");
 
         // Notify UI if AI staged file changes for review
-        if (staging.hasStagedChanges()) {
-            String diff = fileTools.getDiff();
+        if (staging.hasStagedChanges(sessionId)) {
+            String diff = fileTools.getDiff(sessionId);
             ws.convertAndSend("/topic/review/" + sessionId,
                 Map.of("sessionId", sessionId.toString(), "diff", diff));
         }

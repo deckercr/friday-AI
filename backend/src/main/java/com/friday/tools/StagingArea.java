@@ -5,13 +5,16 @@ import org.springframework.stereotype.Component;
 
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class StagingArea {
 
     private final Path projectRoot;
-    private final Map<String, String> staged = new ConcurrentHashMap<>();
+    // Outer key: sessionId; inner key: normalized relative path
+    private final ConcurrentHashMap<UUID, ConcurrentHashMap<String, String>> sessions =
+        new ConcurrentHashMap<>();
 
     public StagingArea(@Value("${app.project-root}") String root) {
         this.projectRoot = Path.of(root).toAbsolutePath().normalize();
@@ -22,24 +25,28 @@ public class StagingArea {
         this.projectRoot = projectRoot.toAbsolutePath().normalize();
     }
 
-    public void stage(String relativePath, String content) {
-        staged.put(relativePath, content);
+    public void stage(UUID sessionId, String relativePath, String content) {
+        sessions.computeIfAbsent(sessionId, k -> new ConcurrentHashMap<>())
+                .put(relativePath, content);
     }
 
-    public boolean hasStagedChanges() {
-        return !staged.isEmpty();
+    public boolean hasStagedChanges(UUID sessionId) {
+        ConcurrentHashMap<String, String> files = sessions.get(sessionId);
+        return files != null && !files.isEmpty();
     }
 
-    public String getStagedContent(String relativePath) {
-        return staged.get(relativePath);
+    public String getStagedContent(UUID sessionId, String relativePath) {
+        ConcurrentHashMap<String, String> files = sessions.get(sessionId);
+        return files == null ? null : files.get(relativePath);
     }
 
-    public Map<String, String> getAllStaged() {
-        return Map.copyOf(staged);
+    public Map<String, String> getAllStaged(UUID sessionId) {
+        ConcurrentHashMap<String, String> files = sessions.get(sessionId);
+        return files == null ? Map.of() : Map.copyOf(files);
     }
 
-    public void clear() {
-        staged.clear();
+    public void clear(UUID sessionId) {
+        sessions.remove(sessionId);
     }
 
     public Path getProjectRoot() {

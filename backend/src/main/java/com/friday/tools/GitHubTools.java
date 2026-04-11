@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @Component
 public class GitHubTools {
@@ -36,15 +37,23 @@ public class GitHubTools {
         Returns the GitHub PR URL.
         """)
     public String createPR(String branchName, String title, String body) {
-        if (!staging.hasStagedChanges()) {
+        UUID sessionId = FileTools.getCurrentSession();
+        if (sessionId == null || !staging.hasStagedChanges(sessionId)) {
             return "No staged changes to commit.";
+        }
+        return createPRForSession(branchName, title, body, sessionId);
+    }
+
+    public String createPRForSession(String branchName, String title, String body, UUID sessionId) {
+        if (!staging.hasStagedChanges(sessionId)) {
+            throw new IllegalStateException("No staged changes for session " + sessionId);
         }
 
         String baseSha = github.getDefaultBranchSha();
         github.createBranch(branchName, baseSha);
 
         Map<String, String> fileShas = new HashMap<>();
-        staging.getAllStaged().forEach((path, content) -> {
+        staging.getAllStaged(sessionId).forEach((path, content) -> {
             String blobSha = github.createBlob(content);
             fileShas.put(path, blobSha);
         });
@@ -55,7 +64,7 @@ public class GitHubTools {
         github.updateBranchRef(branchName, commitSha);
 
         String prUrl = github.createPullRequest(branchName, title, body);
-        staging.clear();
+        staging.clear(sessionId);
 
         return prUrl;
     }

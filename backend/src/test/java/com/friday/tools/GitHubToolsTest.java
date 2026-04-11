@@ -4,12 +4,14 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.friday.github.GitHubApiClient;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.util.UUID;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -20,6 +22,7 @@ class GitHubToolsTest {
     @TempDir Path projectRoot;
     GitHubTools tools;
     StagingArea staging;
+    UUID sessionId;
 
     @BeforeAll
     static void startWireMock() {
@@ -34,12 +37,19 @@ class GitHubToolsTest {
 
     @BeforeEach
     void setUp() {
+        sessionId = UUID.randomUUID();
         staging = new StagingArea(projectRoot);
         var client = new GitHubApiClient(
             "test-token", "owner/repo", "dev",
             wireMock.baseUrl()
         );
         tools = new GitHubTools(staging, client, projectRoot);
+        FileTools.setSession(sessionId);
+    }
+
+    @AfterEach
+    void tearDown() {
+        FileTools.clearSession();
     }
 
     @Test
@@ -96,7 +106,7 @@ class GitHubToolsTest {
                     {"html_url":"https://github.com/owner/repo/pull/1"}
                     """)));
 
-        staging.stage("src/Test.java", "public class Test {}");
+        staging.stage(sessionId, "src/Test.java", "public class Test {}");
 
         String result = tools.createPR("friday/test-feature", "Test PR", "Test body");
         assertThat(result).contains("https://github.com/owner/repo/pull/1");

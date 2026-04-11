@@ -7,11 +7,19 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Component
 public class FileTools {
+
+    // Set by ChatService before streaming so @Tool methods know their session
+    private static final ThreadLocal<UUID> CURRENT_SESSION = new ThreadLocal<>();
+
+    public static void setSession(UUID sessionId) { CURRENT_SESSION.set(sessionId); }
+    public static void clearSession() { CURRENT_SESSION.remove(); }
+    public static UUID getCurrentSession() { return CURRENT_SESSION.get(); }
 
     private final Path projectRoot;
     private final StagingArea staging;
@@ -31,11 +39,13 @@ public class FileTools {
     public String readFile(String relativePath) {
         Path resolved = resolve(relativePath);
         String normalizedPath = projectRoot.relativize(resolved).toString();
-        String staged = staging.getStagedContent(normalizedPath);
-        if (staged != null) return staged;
-        Path target = resolve(relativePath);
+        UUID sessionId = CURRENT_SESSION.get();
+        if (sessionId != null) {
+            String staged = staging.getStagedContent(sessionId, normalizedPath);
+            if (staged != null) return staged;
+        }
         try {
-            return Files.readString(target);
+            return Files.readString(resolved);
         } catch (IOException e) {
             return "Error reading file: " + e.getMessage();
         }
@@ -45,7 +55,9 @@ public class FileTools {
     public void writeFile(String relativePath, String content) {
         Path resolved = resolve(relativePath);
         String normalizedPath = projectRoot.relativize(resolved).toString();
-        staging.stage(normalizedPath, content);
+        UUID sessionId = CURRENT_SESSION.get();
+        if (sessionId == null) throw new IllegalStateException("No active session for staging");
+        staging.stage(sessionId, normalizedPath, content);
     }
 
     @Tool(description = "List immediate children of a directory within the project (non-recursive). Path is relative to project root.")
@@ -64,9 +76,22 @@ public class FileTools {
 
     @Tool(description = "Get a unified diff of all staged file changes pending review.")
     public String getDiff() {
-        if (!staging.hasStagedChanges()) return "No staged changes.";
+        UUID sessionId = CURRENT_SESSION.get();
+        if (sessionId == null || !staging.hasStagedChanges(sessionId)) return "No staged changes.";
         StringBuilder diff = new StringBuilder();
-        staging.getAllStaged().forEach((path, content) -> {
+        staging.getAllStaged(sessionId).forEach((path, content) -> {
+            diff.append("--- a/").append(path).append("\n");
+            diff.append("+++ b/").append(path).append("\n");
+            content.lines().forEach(line -> diff.append("+").append(line).append("\n"));
+            diff.append("\n");
+        });
+        return diff.toString();
+    }
+
+    public String getDiff(UUID sessionId) {
+        if (!staging.hasStagedChanges(sessionId)) return "No staged changes.";
+        StringBuilder diff = new StringBuilder();
+        staging.getAllStaged(sessionId).forEach((path, content) -> {
             diff.append("--- a/").append(path).append("\n");
             diff.append("+++ b/").append(path).append("\n");
             content.lines().forEach(line -> diff.append("+").append(line).append("\n"));
