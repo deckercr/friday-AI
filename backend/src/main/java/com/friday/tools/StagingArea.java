@@ -4,7 +4,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Path;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -36,7 +35,7 @@ public class StagingArea {
     }
 
     public Map<String, String> getAllStaged() {
-        return Collections.unmodifiableMap(staged);
+        return Map.copyOf(staged);
     }
 
     public void clear() {
