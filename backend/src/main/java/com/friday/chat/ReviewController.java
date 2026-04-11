@@ -19,6 +19,8 @@ public class ReviewController {
         this.staging = staging;
     }
 
+    private static final String PR_CREATED_PREFIX = "PR created: ";
+
     @PostMapping("/approve")
     public ResponseEntity<Map<String, String>> approve(@RequestBody Map<String, String> body) {
         String result = github.createPR(
@@ -26,8 +28,10 @@ public class ReviewController {
             body.get("title"),
             "Proposed by Friday AI — approved by user."
         );
-        String prUrl = result.replace("PR created: ", "");
-        return ResponseEntity.ok(Map.of("prUrl", prUrl));
+        if (!result.startsWith(PR_CREATED_PREFIX)) {
+            return ResponseEntity.internalServerError().body(Map.of("error", result));
+        }
+        return ResponseEntity.ok(Map.of("prUrl", result.substring(PR_CREATED_PREFIX.length())));
     }
 
     @PostMapping("/reject")
