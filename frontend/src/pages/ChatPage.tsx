@@ -64,7 +64,11 @@ export default function ChatPage() {
       setPendingReview(activeSession.id, diff)
     })
 
-    return () => { unsub(); reviewUnsub() }
+    return () => {
+      unsub()
+      reviewUnsub()
+      setStreaming(false)
+    }
   }, [activeSession])
 
   function handleSend(content: string) {
