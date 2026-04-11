@@ -14,7 +14,9 @@ export default function NavBar() {
         <Link to="/review" className="text-gray-300 hover:text-white text-sm flex items-center gap-1">
           Review
           {pendingDiff && (
-            <span className="bg-orange-500 text-white text-xs rounded-full px-1.5 py-0.5">1</span>
+            <span className="bg-orange-500 text-white text-xs rounded-full px-1.5 py-0.5" aria-label="1 pending review">
+              <span aria-hidden="true">1</span>
+            </span>
           )}
         </Link>
       </div>
