@@ -6,7 +6,7 @@ export default function ChatInput({ onSend, disabled }: Props) {
   const [value, setValue] = useState('')
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault()
       if (value.trim()) {
         onSend(value.trim())
