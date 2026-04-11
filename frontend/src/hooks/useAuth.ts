@@ -37,8 +37,11 @@ export function useAuth() {
   }, [accessToken])
 
   async function logout() {
-    await apiLogout()
-    clearAuth()
+    try {
+      await apiLogout()
+    } finally {
+      clearAuth()
+    }
   }
 
   return { accessToken, logout }
