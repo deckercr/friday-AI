@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.util.LinkedMultiValueMap;
@@ -13,7 +14,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -40,6 +43,8 @@ public class SttController {
             .build();
     }
 
+    private record WhisperResponse(String text) {}
+
     /**
      * Proxy multipart audio to the internal Whisper service and return trimmed text.
      * Whisper prepends a leading space to transcriptions; we strip it.
@@ -48,23 +53,30 @@ public class SttController {
     public Map<String, String> transcribe(@RequestPart("audio") MultipartFile audio)
             throws IOException {
         var bytes = audio.getBytes();
+        String originalName = audio.getOriginalFilename();
+        String filename = (originalName != null && !originalName.isBlank()) ? originalName : "audio.webm";
         var resource = new ByteArrayResource(bytes) {
-            @Override public String getFilename() { return "audio.webm"; }
+            @Override public String getFilename() { return filename; }
         };
 
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("file", resource);
 
-        @SuppressWarnings("unchecked")
-        Map<String, Object> response = restClient.post()
-            .uri("/inference")
-            .contentType(MediaType.MULTIPART_FORM_DATA)
-            .body(body)
-            .retrieve()
-            .body(Map.class);
+        WhisperResponse response;
+        try {
+            response = restClient.post()
+                .uri("/inference")
+                .contentType(MediaType.MULTIPART_FORM_DATA)
+                .body(body)
+                .retrieve()
+                .body(WhisperResponse.class);
+        } catch (RestClientException e) {
+            log.warn("STT service unavailable: {}", e.getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "STT service unavailable");
+        }
 
-        String raw = response != null ? (String) response.getOrDefault("text", "") : "";
-        String text = raw.strip();
+        String text = (response != null && response.text() != null)
+            ? response.text().strip() : "";
         log.debug("STT transcribed {} bytes -> {} chars", bytes.length, text.length());
         return Map.of("text", text);
     }

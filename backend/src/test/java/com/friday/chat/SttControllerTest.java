@@ -68,4 +68,17 @@ class SttControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.text").value(""));
     }
+
+    @Test
+    @WithMockUser
+    void returnsBadGatewayWhenWhisperFails() throws Exception {
+        wiremock.stubFor(post(urlPathEqualTo("/inference"))
+            .willReturn(aResponse().withStatus(500)));
+
+        var file = new MockMultipartFile("audio", "audio.webm",
+            "audio/webm", "fake-audio".getBytes());
+
+        mvc.perform(multipart("/api/stt/transcribe").file(file))
+            .andExpect(status().isBadGateway());
+    }
 }
