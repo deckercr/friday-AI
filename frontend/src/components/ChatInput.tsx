@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { transcribe } from '../api/stt'
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder'
 
@@ -11,6 +11,8 @@ export default function ChatInput({ onSend, disabled }: Props) {
   const [value, setValue] = useState('')
   const { state: recState, startRecording, stopRecording } = useVoiceRecorder()
   const [sttError, setSttError] = useState<string | null>(null)
+  const [isTranscribing, setIsTranscribing] = useState(false)
+  const handlingRef = useRef(false)
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -27,31 +29,41 @@ export default function ChatInput({ onSend, disabled }: Props) {
   }
 
   async function handleMicClick() {
+    if (handlingRef.current) return
+    handlingRef.current = true
     setSttError(null)
-    if (recState === 'recording') {
-      try {
+    try {
+      if (recState === 'recording') {
         const blob = await stopRecording()
-        const text = await transcribe(blob)
-        if (text) {
-          onSend(text)
-          setValue('')
+        setIsTranscribing(true)
+        try {
+          const text = await transcribe(blob)
+          if (text) {
+            onSend(text)
+            setValue('')
+          }
+        } catch (err) {
+          setSttError('Transcription failed. Please try again.')
+          console.error('STT error:', err)
+        } finally {
+          setIsTranscribing(false)
         }
-      } catch (err) {
-        setSttError('Transcription failed. Please try again.')
-        console.error('STT error:', err)
+      } else {
+        try {
+          await startRecording()
+        } catch {
+          setSttError('Microphone access denied.')
+        }
       }
-    } else {
-      try {
-        await startRecording()
-      } catch {
-        setSttError('Microphone access denied.')
-      }
+    } finally {
+      handlingRef.current = false
     }
   }
 
   const isRecording = recState === 'recording'
   const isProcessing = recState === 'processing'
-  const micDisabled = disabled || isProcessing
+  const isBusy = isRecording || isProcessing || isTranscribing
+  const micDisabled = disabled || isProcessing || isTranscribing
 
   return (
     <div className="border-t border-gray-700 p-4">
@@ -59,10 +71,10 @@ export default function ChatInput({ onSend, disabled }: Props) {
         value={value}
         onChange={e => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
-        disabled={disabled || isRecording || isProcessing}
+        disabled={disabled || isBusy}
         placeholder={
           isRecording ? 'Listening...' :
-          isProcessing ? 'Transcribing...' :
+          (isProcessing || isTranscribing) ? 'Transcribing...' :
           'Message Friday... (Enter to send, Shift+Enter for newline)'
         }
         rows={3}
@@ -81,8 +93,9 @@ export default function ChatInput({ onSend, disabled }: Props) {
           <div className="flex items-center gap-2">
             <button
               onClick={handleMicClick}
+              disabled={isTranscribing}
               title="Stop recording"
-              className="w-8 h-8 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center text-sm font-bold shrink-0"
+              className="w-8 h-8 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center text-sm font-bold shrink-0 disabled:opacity-50"
             >
               ■
             </button>
@@ -92,18 +105,18 @@ export default function ChatInput({ onSend, disabled }: Props) {
           <button
             onClick={handleMicClick}
             disabled={micDisabled}
-            title={isProcessing ? 'Transcribing...' : 'Start voice input'}
+            title={isTranscribing ? 'Transcribing...' : 'Start voice input'}
             className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span>🎙</span>
-            <span>{isProcessing ? 'Transcribing...' : 'Voice input'}</span>
+            <span>{isTranscribing ? 'Transcribing...' : 'Voice input'}</span>
           </button>
         )}
 
         {/* Right: send */}
         <button
           onClick={() => submitText(value)}
-          disabled={disabled || !value.trim() || isRecording || isProcessing}
+          disabled={disabled || !value.trim() || isBusy}
           className="px-4 py-1.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Send
