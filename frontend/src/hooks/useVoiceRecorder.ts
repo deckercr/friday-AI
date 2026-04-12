@@ -13,8 +13,10 @@ export function useVoiceRecorder(): UseVoiceRecorder {
   const mediaRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<BlobPart[]>([])
   const resolveRef = useRef<((blob: Blob) => void) | null>(null)
+  const rejectRef = useRef<((err: Error) => void) | null>(null)
 
   const startRecording = useCallback(async () => {
+    if (mediaRef.current) return  // already recording
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     const recorder = new MediaRecorder(stream, { mimeType: preferredMimeType() })
     chunksRef.current = []
@@ -28,6 +30,16 @@ export function useVoiceRecorder(): UseVoiceRecorder {
       const blob = new Blob(chunksRef.current, { type: recorder.mimeType })
       resolveRef.current?.(blob)
       resolveRef.current = null
+      rejectRef.current = null
+      setState('idle')
+    }
+
+    recorder.onerror = (event) => {
+      stream.getTracks().forEach(t => t.stop())
+      rejectRef.current?.(new Error(`Recording error: ${(event as MediaRecorderErrorEvent).error?.message ?? 'unknown'}`))
+      resolveRef.current = null
+      rejectRef.current = null
+      setState('idle')
     }
 
     recorder.start()
@@ -36,8 +48,12 @@ export function useVoiceRecorder(): UseVoiceRecorder {
   }, [])
 
   const stopRecording = useCallback((): Promise<Blob> => {
-    return new Promise((resolve) => {
+    if (!mediaRef.current) {
+      return Promise.reject(new Error('Not currently recording'))
+    }
+    return new Promise((resolve, reject) => {
       resolveRef.current = resolve
+      rejectRef.current = reject
       setState('processing')
       mediaRef.current?.stop()
       mediaRef.current = null
