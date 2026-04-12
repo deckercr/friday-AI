@@ -1,6 +1,7 @@
 package com.friday.tools;
 
 import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -24,6 +25,7 @@ public class FileTools {
     private final Path projectRoot;
     private final StagingArea staging;
 
+    @Autowired
     public FileTools(@Value("${app.project-root}") String root, StagingArea staging) {
         this.projectRoot = Path.of(root).toAbsolutePath().normalize();
         this.staging = staging;
