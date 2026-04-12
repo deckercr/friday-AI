@@ -4,7 +4,8 @@ const BASE = import.meta.env.VITE_API_BASE_URL ?? ''
 
 /**
  * POST audio blob to the backend STT proxy.
- * Returns the trimmed transcription string, or empty string on failure.
+ * Returns the transcription string.
+ * @throws {Error} if the HTTP response is not OK
  */
 export async function transcribe(blob: Blob): Promise<string> {
   const token = useAuthStore.getState().accessToken
