@@ -36,7 +36,8 @@ export function useVoiceRecorder(): UseVoiceRecorder {
 
     recorder.onerror = (event) => {
       stream.getTracks().forEach(t => t.stop())
-      rejectRef.current?.(new Error(`Recording error: ${(event as MediaRecorderErrorEvent).error?.message ?? 'unknown'}`))
+      const err = (event as Event & { error?: DOMException }).error
+      rejectRef.current?.(new Error(`Recording error: ${err?.message ?? 'unknown'}`))
       resolveRef.current = null
       rejectRef.current = null
       setState('idle')
