@@ -5,6 +5,7 @@ import com.friday.auth.UserRepository;
 import com.friday.config.SecurityConfig;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -35,6 +36,9 @@ class SttControllerTest {
 
     @AfterAll
     static void stop() { wiremock.stop(); }
+
+    @BeforeEach
+    void resetStubs() { wiremock.resetAll(); }
 
     @MockBean JwtService jwtService;
     @MockBean UserRepository userRepository;
