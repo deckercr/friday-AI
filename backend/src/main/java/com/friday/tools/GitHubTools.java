@@ -2,10 +2,9 @@ package com.friday.tools;
 
 import com.friday.github.GitHubApiClient;
 import org.springframework.ai.tool.annotation.Tool;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -15,20 +14,17 @@ public class GitHubTools {
 
     private final StagingArea staging;
     private final GitHubApiClient github;
-    private final Path projectRoot;
 
-    public GitHubTools(StagingArea staging, GitHubApiClient github,
-                       @Value("${app.project-root}") String root) {
+    @Autowired
+    public GitHubTools(StagingArea staging, GitHubApiClient github) {
         this.staging = staging;
         this.github = github;
-        this.projectRoot = Path.of(root);
     }
 
     // Test constructor
-    GitHubTools(StagingArea staging, GitHubApiClient github, Path projectRoot) {
+    GitHubTools(StagingArea staging, GitHubApiClient github, java.nio.file.Path ignored) {
         this.staging = staging;
         this.github = github;
-        this.projectRoot = projectRoot;
     }
 
     @Tool(description = """

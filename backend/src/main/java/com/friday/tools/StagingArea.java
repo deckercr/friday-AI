@@ -1,5 +1,6 @@
 package com.friday.tools;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +17,7 @@ public class StagingArea {
     private final ConcurrentHashMap<UUID, ConcurrentHashMap<String, String>> sessions =
         new ConcurrentHashMap<>();
 
+    @Autowired
     public StagingArea(@Value("${app.project-root}") String root) {
         this.projectRoot = Path.of(root).toAbsolutePath().normalize();
     }
