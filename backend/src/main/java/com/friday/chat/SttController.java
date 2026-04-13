@@ -7,6 +7,7 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.converter.HttpMessageConversionException;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -70,7 +71,7 @@ public class SttController {
                 .body(body)
                 .retrieve()
                 .body(WhisperResponse.class);
-        } catch (RestClientException e) {
+        } catch (RestClientException | HttpMessageConversionException e) {
             log.warn("STT service unavailable: {}", e.getMessage());
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "STT service unavailable");
         }
